@@ -1,0 +1,52 @@
+name: PIXORA for Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      CRAFT_FONTS_DIR: ${{ github.workspace }}\packaging\pixora
+      CRAFT_FONTS_REQUIRED: "1"
+      PHOTOCRAFT_BUILD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PHOTOCRAFT_BUILD_DATE = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+          $env:PHOTOCRAFT_REQUIRE_WINRES = '1'
+          cargo build --release --locked -p photocraft -p photocraft-cli --features photocraft/heif,photocraft-cli/heif
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $out = "dist\PIXORA"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item target\release\photocraft.exe "$out\PIXORA.exe"
+          Copy-Item target\release\photocraft-cli.exe "$out\pixora-cli.exe"
+          Copy-Item LICENSE-MIT, LICENSE-APACHE, NOTICE, ATTRIBUTION.md, packaging\pixora\fonts\OFL-NotoSinhala.txt $out
+          Copy-Item packaging\pixora\README-PIXORA.txt "$out\README.txt"
+          Copy-Item "packaging\pixora\Create Desktop Shortcut.bat" $out
+          Compress-Archive -Path $out -DestinationPath "dist\PIXORA-$v-windows-x64.zip" -Force
+          "ZIP=dist\PIXORA-$v-windows-x64.zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PIXORA-windows-x64
+          path: ${{ env.ZIP }}
+      - name: Release (tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "$env:ZIP" --title "PIXORA ${{ github.ref_name }}" --generate-notes

@@ -1,0 +1,12 @@
+PIXORA app icon (photocraft.svg, photocraft-small.svg and every file derived from them in this
+directory: photocraft-1024.png, photocraft.ico, hicolor/). The file names are kept from PhotoCraft so
+the code that loads them is unchanged; photocraft.icns is still PhotoCraft's (macOS only, unused by
+the Windows build).
+
+Original artwork made for PIXORA by Imal Madhusanka: a "P" stroke in a violet-to-cyan gradient
+with a spark, on a dark rounded tile. Licensed like the rest of PIXORA, under either of
+
+  * Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+  * MIT license (https://opensource.org/licenses/MIT)
+
+at your option.
