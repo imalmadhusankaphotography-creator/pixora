@@ -1,5 +1,16 @@
 # PIXORA changelog
 
+## 0.5.0 — PhotoCraft 0.15.1 engine
+PIXORA now runs on [PhotoCraft](https://github.com/storytold/photocraft) 0.15.1 (it was 0.9). Everything the
+engine gained in between comes with it, with PIXORA's name, icon, Sinhala fonts and local link kept.
+
+- **New logo** by Imal Madhusanka: the app icon, the exe icon, About and the start screen.
+- Content-Aware Fill workspace and sampling-area tools, Color Range and Select and Mask in Actions, PDF in File ›
+  Open, per-format File › Open filters, Tab in Full Screen Mode to show the panels, "Show File Name In Title"
+  preference, the shortcut-set importer, safer file parsers and many fixes.
+- Crash-recovery autosaves now live in `%LOCALAPPDATA%\PIXORA\Recovery` (settings stay in `%APPDATA%\PIXORA`).
+- The PIXORA Link (local control channel) is unchanged: same `link.json`, same port range.
+
 ## 0.4.0 — the PhotoCraft engine
 PIXORA is rebuilt on [PhotoCraft](https://github.com/storytold/photocraft), the open-source Photoshop
 reimplementation in Rust. Everything below comes with it.

@@ -51,6 +51,43 @@ fn dragging_a_brush_shows_its_tip_preview() {
     }
 }
 
+/// #5741: a brush dragged to the list's bottom edge (or below it) scrolls the list, so it can be
+/// dropped on rows out of view; the list used to stay put, and the drag stopped at the last
+/// visible row.
+#[test]
+fn dragging_a_brush_to_the_list_edge_scrolls_the_list() {
+    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    app.ui.panels.brush_settings = true;
+    app.ui.brush_tab = 1;
+    app.ui.brushes_panel.view = BrushesView::List;
+    app.ui.brushes_panel.collapsed.clear();
+    let name = app.session.tools.presets[0].name.clone();
+    let (w, h_px) = (1200.0, 520.0);
+    let mut h = Harness::builder().with_size(vec2(w, h_px)).build_eframe(move |cc| {
+        PhotocraftApp::setup_context(&cc.egui_ctx, crate::theme::ThemeKind::ALL[0]);
+        app
+    });
+    h.run_steps(4);
+    let start = h.get_by_role_and_label(Role::Button, &name).rect();
+    h.hover_at(start.center());
+    h.run_steps(1);
+    h.event(egui::Event::PointerButton { pos: start.center(), button: egui::PointerButton::Primary, pressed: true, modifiers: egui::Modifiers::NONE });
+    h.run_steps(1);
+    h.event(egui::Event::PointerMoved(start.center() + vec2(0.0, 12.0)));
+    h.run_steps(2);
+    assert!(egui::DragAndDrop::has_payload_of_type::<BrushDrag>(&h.ctx), "the brush is being dragged");
+    // Held at the bottom of the window, below the list's last visible row.
+    let bottom = egui::pos2(start.center().x, h_px - 2.0);
+    for _ in 0..12 {
+        h.event(egui::Event::PointerMoved(bottom));
+        h.run_steps(1);
+    }
+    let moved = h.query_by_role_and_label(Role::Button, &name).map(|n| n.rect());
+    assert!(moved.is_none_or(|r| r.top() < start.top() - 1.0), "the list scrolled down: {start:?} → {moved:?}");
+    h.event(egui::Event::PointerButton { pos: bottom, button: egui::PointerButton::Primary, pressed: false, modifiers: egui::Modifiers::NONE });
+    h.run_steps(2);
+}
+
 #[test]
 fn grid_columns_centre_whole_columns_past_the_indent() {
     // 6 × 44 + 5 × 3 = 279 of the 290 past a 4 pt indent: 5 spare on each side (rounded down).
@@ -361,4 +398,40 @@ fn card_tips_never_cover_their_size_number() {
         let r = card_tip_rect(cell, Some(n), size, scale);
         assert!(r.min.is_finite() && r.max.is_finite(), "{n} {size} {scale}: {r:?}");
     }
+}
+
+/// #7256: the Brushes tab's preview slider scales the grid cells and list rows; it is not the
+/// Size of the current brush.
+#[test]
+fn the_preview_slider_scales_the_previews_not_the_brush_size() {
+    for grid in [true, false] {
+        let mut sizes = Vec::new();
+        for scale in [0.5f32, 1.0, 2.0] {
+            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+            app.ui.panels.brush_settings = true;
+            app.ui.brush_tab = 1;
+            app.ui.brushes_panel.view = if grid { BrushesView::Grid } else { BrushesView::List };
+            app.ui.brushes_panel.scale = scale;
+            let size = app.session.tools.brush.size;
+            let name = app.session.tools.presets[0].name.clone();
+            let mut h = Harness::builder().with_size(vec2(1200.0, 900.0)).build_eframe(move |cc| {
+                PhotocraftApp::setup_context(&cc.egui_ctx, crate::theme::ThemeKind::ALL[0]);
+                app
+            });
+            h.run_steps(4);
+            let r = h.get_by_role_and_label(Role::Button, &name).rect();
+            sizes.push(if grid { r.width() } else { r.height() });
+            assert_eq!(h.state().session.tools.brush.size, size, "the preview slider leaves the brush size alone");
+        }
+        assert!(sizes[0] < sizes[1] && sizes[1] < sizes[2], "grid {grid}: previews grow with the slider: {sizes:?}");
+    }
+}
+
+#[test]
+fn preview_scale_is_clamped_to_its_range() {
+    assert_eq!(list_row_height(1.0), 44.0);
+    assert_eq!(list_row_height(100.0), 88.0);
+    assert_eq!(list_row_height(f32::NAN), 44.0);
+    assert_eq!(grid_cell_width(52.0, 0.0), 26.0);
+    assert_eq!(grid_cell_width(52.0, f32::INFINITY), 52.0);
 }
